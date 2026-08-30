@@ -1,122 +1,96 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from 'react';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [urlToCrawl, setUrlToCrawl] = useState('');
+  const [status, setStatus] = useState('');
+
+  // Function to send a URL to our backend crawler
+  const handleCrawl = async (e) => {
+    e.preventDefault();
+    setStatus('Crawling...');
+    try {
+      const res = await fetch('http://localhost:3000/api/crawl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlToCrawl })
+      });
+      const data = await res.json();
+      if (data.error) setStatus(`Error: ${data.error}`);
+      else setStatus(`Success! Indexed: ${data.title}`);
+      setUrlToCrawl('');
+    } catch (err) {
+      setStatus('Failed to connect to backend.');
+    }
+  };
+
+  // Function to search the indexed documents
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query) return;
+    try {
+      const res = await fetch(`http://localhost:3000/api/search?q=${query}`);
+      const data = await res.json();
+      setResults(data.results || []);
+    } catch (err) {
+      console.error("Search failed:", err);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ maxWidth: '800px', margin: '40px auto', fontFamily: 'system-ui, sans-serif' }}>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>My Custom Search Engine</h1>
+      
+      {/* 1. The Indexing Interface */}
+      <div style={{ background: '#f4f4f5', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+        <h3>1. Feed the Engine (Crawl a URL)</h3>
+        <form onSubmit={handleCrawl} style={{ display: 'flex', gap: '10px' }}>
+          <input 
+            type="url" 
+            value={urlToCrawl} 
+            onChange={(e) => setUrlToCrawl(e.target.value)} 
+            placeholder="https://en.wikipedia.org/wiki/JavaScript" 
+            required 
+            style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>Index Page</button>
+        </form>
+        {status && <p style={{ marginTop: '10px', color: '#059669', fontWeight: 'bold' }}>{status}</p>}
+      </div>
 
-      <div className="ticks"></div>
+      {/* 2. The Search Interface */}
+      <div>
+        <h3>2. Search the Database</h3>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <input 
+            type="text" 
+            value={query} 
+            onChange={(e) => setQuery(e.target.value)} 
+            placeholder="Type your search query..." 
+            style={{ flex: 1, padding: '12px', borderRadius: '24px', border: '1px solid #dfe1e5', fontSize: '16px' }}
+          />
+          <button type="submit" style={{ padding: '10px 24px', borderRadius: '24px', cursor: 'pointer', background: '#1a73e8', color: 'white', border: 'none' }}>Search</button>
+        </form>
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* 3. The Results */}
+      <div>
+        <p style={{ color: '#70757a', fontSize: '14px' }}>Found {results.length} results</p>
+        {results.map((result) => (
+          <div key={result.id} style={{ marginBottom: '24px' }}>
+            <a href={result.url} target="_blank" rel="noreferrer" style={{ fontSize: '20px', color: '#1a0dab', textDecoration: 'none' }}>
+              {result.title}
+            </a>
+            <div style={{ color: '#006621', fontSize: '14px', marginBottom: '4px' }}>{result.url}</div>
+            <div style={{ color: '#4d5156', fontSize: '14px', lineHeight: '1.58' }}>
+              {result.description}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-export default App
+export default App;
