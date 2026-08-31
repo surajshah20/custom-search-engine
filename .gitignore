@@ -1,2 +1,14 @@
-node_modules/
+# Ignore environment variables anywhere in the repo
 .env
+backend/.env
+frontend/.env
+*.env
+
+# Ignore dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Ignore build files
+dist/
+build/

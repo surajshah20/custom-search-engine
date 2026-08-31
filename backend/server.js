@@ -1,38 +1,50 @@
 const express = require('express');
 const cors = require('cors');
-const { crawl } = require('./crawler');
+const { crawlCategoryPage, getLiveNepse } = require('./crawler');
 const { indexDocument, search } = require('./indexer');
 
 const app = express();
 const PORT = 3000;
 
-// Middleware
-app.use(cors()); // Allows our React frontend to communicate with this API
-app.use(express.json()); // Parses JSON body payloads
+app.use(cors());
+app.use(express.json());
 
-// Route 1: Trigger a crawl (POST /api/crawl)
-app.post('/api/crawl', async (req, res) => {
-    const { url } = req.body;
-    if (!url) return res.status(400).json({ error: 'URL is required' });
+const CATEGORY_URLS = [
+    'https://www.sharesansar.com/category/latest',
+    'https://www.sharesansar.com/category/ipo-fpo-right-share',
+    'https://www.sharesansar.com/category/dividend-bonus'
+];
 
-    const document = await crawl(url);
-    if (document) {
-        indexDocument(document);
-        res.json({ message: 'Document crawled and indexed', title: document.title });
-    } else {
-        res.status(500).json({ error: 'Failed to crawl the provided URL' });
+async function runBackgroundCrawler() {
+    console.log('\n[Background Worker] Fetching latest live news...');
+    for (const catUrl of CATEGORY_URLS) {
+        const docs = await crawlCategoryPage(catUrl);
+        for (const doc of docs) {
+            await indexDocument(doc);
+        }
     }
-});
+    console.log('[Background Worker] Indexing complete.\n');
+}
 
-// Route 2: Perform a search (GET /api/search?q=your+query)
-app.get('/api/search', (req, res) => {
-    const query = req.query.q;
+app.get('/api/search', async (req, res) => {
+    const query = (req.query.q || '').toLowerCase();
     if (!query) return res.status(400).json({ error: 'Query parameter "q" is required' });
 
-    const results = search(query);
-    res.json({ count: results.length, results });
+    let directAnswer = null;
+    if (query.includes('nepse') || query.includes('index') || query.includes('market')) {
+        directAnswer = await getLiveNepse();
+    }
+
+    const results = await search(query);
+    res.json({
+        directAnswer,
+        count: results.length,
+        results
+    });
 });
 
 app.listen(PORT, () => {
     console.log(`[Server] Search API running at http://localhost:${PORT}`);
+    runBackgroundCrawler();
+    setInterval(runBackgroundCrawler, 1800000);
 });
