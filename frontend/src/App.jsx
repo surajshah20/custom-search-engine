@@ -1,106 +1,215 @@
 import { useState } from 'react';
+import './App.css';
+
+function cleanText(str) {
+  if (!str) return '';
+  return str
+    .replace(/\s*-\s*\|\|\s*ShareSansar\s*\|\|/gi, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+}
+
+function getCategoryColor(category = '') {
+  const cat = category.toLowerCase();
+  if (cat.includes('ipo')) return 'badge-ipo';
+  if (cat.includes('dividend') || cat.includes('bonus')) return 'badge-dividend';
+  if (cat.includes('bank')) return 'badge-bank';
+  return 'badge-news';
+}
 
 function App() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('ALL');
   const [directAnswer, setDirectAnswer] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query) return;
-    setIsSearching(true);
-    setDirectAnswer(null); // Clear previous widget
+  const categories = ['ALL', 'Market News', 'IPO', 'Dividend', 'Banking'];
+  const suggestions = ['nepse', 'commercial bank', 'bonus shares', 'ipo'];
+
+  const executeSearch = async (searchTerm) => {
+    const term = (searchTerm ?? query).trim();
+    if (!term) return;
+
+    setLoading(true);
+    setHasSearched(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/search?q=${query}`);
+      const res = await fetch(`http://localhost:3000/api/search?q=${encodeURIComponent(term)}`);
       const data = await res.json();
+      setDirectAnswer(data.directAnswer || null);
       setResults(data.results || []);
-      if (data.directAnswer) setDirectAnswer(data.directAnswer);
     } catch (err) {
-      console.error("Search failed:", err);
+      console.error('Search request failed:', err);
+    } finally {
+      setLoading(false);
     }
-    setIsSearching(false);
   };
 
-  const getCategoryColor = (category) => {
-    if (category === 'IPO') return '#10b981'; 
-    if (category === 'Dividend') return '#3b82f6'; 
-    return '#8b5cf6'; 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      executeSearch();
+    }
   };
+
+  const filteredResults = results.filter((item) => {
+    if (activeCategory === 'ALL') return true;
+    const cat = (item.category || '').toLowerCase();
+    const active = activeCategory.toLowerCase();
+    return cat.includes(active) || (active === 'banking' && item.title.toLowerCase().includes('bank'));
+  });
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#e2e8f0', fontFamily: 'Inter, system-ui, sans-serif', padding: '60px 20px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        
-        <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 style={{ margin: 0, color: '#f8fafc', fontSize: '36px', fontWeight: '700', letterSpacing: '-1px' }}>
-            Market<span style={{ color: '#3b82f6' }}>Intel</span>
-          </h1>
-          <p style={{ margin: '10px 0 0 0', color: '#94a3b8', fontSize: '16px' }}>Zero-Click Nepali Financial Search</p>
-        </header>
+    <div className="app-container">
+      {/* Background radial glow */}
+      <div className="bg-glow" />
 
-        {/* The Clean Search Bar */}
-        <div style={{ marginBottom: '40px' }}>
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px' }}>
-            <input 
-              type="text" 
-              value={query} 
-              onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Try searching 'nepse', 'ipo', or 'dividend'..." 
-              style={{ flex: 1, padding: '18px 24px', borderRadius: '30px', border: '1px solid #334155', backgroundColor: '#1e293b', color: 'white', fontSize: '18px', outline: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-            />
-            <button type="submit" disabled={isSearching} style={{ padding: '0 32px', borderRadius: '30px', cursor: 'pointer', background: '#3b82f6', color: 'white', border: 'none', fontSize: '16px', fontWeight: 'bold' }}>
-              {isSearching ? '...' : 'Search'}
+      {/* Header */}
+      <header className="header">
+        <div className="logo-row">
+          <span className="logo-badge">NEPAL FINTECH</span>
+          <h1 className="logo-title">
+            Market<span className="accent">Intel</span>
+          </h1>
+        </div>
+        <p className="subtitle">Real-time NEPSE intelligence, capital plans, and disclosures</p>
+      </header>
+
+      {/* Search Section */}
+      <section className="search-section">
+        <div className="search-box">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search NEPSE index, dividend, commercial banks, IPOs..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          {query && (
+            <button className="clear-btn" onClick={() => setQuery('')}>
+              ×
             </button>
-          </form>
+          )}
+          <button className="search-action-btn" onClick={() => executeSearch()} disabled={loading}>
+            {loading ? 'Searching...' : 'Search'}
+          </button>
         </div>
 
-        {/* 🚀 THE DIRECT ANSWER WIDGET */}
+        {/* Quick Suggestion Chips */}
+        <div className="suggestion-row">
+          <span className="suggestion-label">Try:</span>
+          {suggestions.map((item) => (
+            <button
+              key={item}
+              className="chip-btn"
+              onClick={() => {
+                setQuery(item);
+                executeSearch(item);
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Category Tabs */}
+      {hasSearched && (
+        <nav className="tabs-nav">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              className={`tab-btn ${activeCategory === cat ? 'tab-active' : ''}`}
+              onClick={() => setActiveCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* Main Content Area */}
+      <main className="results-container">
+        {/* Live NEPSE Direct Answer Card */}
         {directAnswer && (
-          <div style={{ backgroundColor: '#1e293b', padding: '30px', borderRadius: '16px', marginBottom: '30px', border: '1px solid #3b82f6', borderTop: '4px solid #3b82f6', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
-            <div style={{ fontSize: '14px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', fontWeight: 'bold' }}>Live Market Widget</div>
-            <h2 style={{ margin: '0 0 15px 0', fontSize: '24px', color: '#f8fafc' }}>{directAnswer.title}</h2>
-            
-            <div style={{ display: 'flex', gap: '40px' }}>
-              <div>
-                <div style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '5px' }}>Current Index</div>
-                <div style={{ fontSize: '36px', fontWeight: 'bold', color: 'white' }}>{directAnswer.index}</div>
+          <div className="live-nepse-card">
+            <div className="nepse-header">
+              <div className="nepse-status">
+                <span className="pulse-dot" />
+                <span className="nepse-title">{directAnswer.title}</span>
               </div>
-              <div>
-                <div style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '5px' }}>Day Change</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: directAnswer.change.includes('-') ? '#ef4444' : '#10b981', marginTop: '10px' }}>
+              <span className="live-tag">LIVE FEED</span>
+            </div>
+
+            <div className="nepse-body">
+              <div className="nepse-main-stat">
+                <span className="nepse-number">{directAnswer.index}</span>
+                <span className={`nepse-change ${directAnswer.change?.includes('-') ? 'negative' : 'positive'}`}>
                   {directAnswer.change}
+                </span>
+              </div>
+              {directAnswer.turnover && (
+                <div className="nepse-meta">
+                  <span className="meta-label">Total Turnover:</span>
+                  <span className="meta-value">NPR {directAnswer.turnover}</span>
                 </div>
-              </div>
-              <div>
-                <div style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '5px' }}>Turnover (Rs)</div>
-                <div style={{ fontSize: '20px', fontWeight: '600', color: '#cbd5e1', marginTop: '14px' }}>{directAnswer.turnover}</div>
-              </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Standard Indexed Results */}
-        {results.length > 0 && (
-          <div>
-            <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '20px' }}>Database Results</p>
-            <div style={{ display: 'grid', gap: '20px' }}>
-              {results.map((result) => (
-                <div key={result.id} style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <a href={result.url} target="_blank" rel="noreferrer" style={{ fontSize: '18px', color: '#f8fafc', textDecoration: 'none', fontWeight: '600' }}>
-                      {result.title}
-                    </a>
-                  </div>
-                  <div style={{ color: '#cbd5e1', fontSize: '14px', lineHeight: '1.6' }}>
-                    {result.content.substring(0, 250)}...
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Results Header */}
+        {hasSearched && !loading && (
+          <div className="results-meta-bar">
+            <span>Found {filteredResults.length} market insights</span>
           </div>
         )}
-      </div>
+
+        {/* Articles List */}
+        <div className="cards-grid">
+          {filteredResults.map((item, index) => (
+            <article key={item.$id || index} className="article-card">
+              <div className="card-top-row">
+                <span className={`category-badge ${getCategoryColor(item.category)}`}>
+                  {item.category || 'Market News'}
+                </span>
+                <span className="card-date">{item.publishDate || 'Recent'}</span>
+              </div>
+
+              <h2 className="card-title">
+                <a href={item.url} target="_blank" rel="noopener noreferrer">
+                  {cleanText(item.title)}
+                </a>
+              </h2>
+
+              <p className="card-snippet">{cleanText(item.content)}</p>
+
+              <div className="card-footer">
+                <span className="source-label">Source: ShareSansar</span>
+                <a href={item.url} target="_blank" rel="noopener noreferrer" className="read-link">
+                  Read article <span>→</span>
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {hasSearched && !loading && filteredResults.length === 0 && !directAnswer && (
+          <div className="empty-state">
+            <p className="empty-title">No matching disclosures found</p>
+            <p className="empty-desc">Try checking for typos or searching general terms like "bank", "bonus", or "nepse".</p>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
