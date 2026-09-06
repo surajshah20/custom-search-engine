@@ -1,3 +1,9 @@
+#root {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 :root {
   /* Premium Dark Theme Palette */
   --bg-dark: #050505;
@@ -34,6 +40,7 @@ body {
   margin: 0 auto;
   padding: 64px 24px 100px;
   position: relative;
+  border: none; /* Forces removal of those vertical lines */
 }
 
 /* Subtle Top Glow */
